@@ -165,14 +165,14 @@ task run_deepvariant {
         (zcat "${ref_fasta_gz}" > /input/ref.fasta && samtools faidx /input/ref.fasta)
 
         /opt/deepvariant/bin/run_deepvariant \
-            --model_type=${model_type} \ **Replace this string with exactly one of the following [WGS,WES,PACBIO,HYBRID_PACBIO_ILLUMINA]**
+            --model_type=${model_type} \
             --ref=/input/ref.fasta \
             --reads=${bam} \
             --output_vcf=/output/YOUR_OUTPUT_VCF \
             --output_gvcf=/output/YOUR_OUTPUT_GVCF \
-            --num_shards=$(nproc) \ **This will use all your cores to run make_examples. Feel free to change.**
-            --logging_dir=/output/logs \ **Optional. This saves the log output for each stage separately.
-            --dry_run=false **Default is false. If set to true, commands will be printed out but not executed.
+            --num_shards=$(nproc) \
+            --logging_dir=/output/logs \
+            --dry_run=false
 
         NO_GCE_CHECK=True /opt/deepvariant/bin/run_deepvariant \
             --outfile "output/$output_name.call_variants.tfrecord.gz" \
