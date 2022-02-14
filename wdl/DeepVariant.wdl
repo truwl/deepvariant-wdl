@@ -162,11 +162,11 @@ task run_deepvariant {
         set -ex -o pipefail
 
         apt-get update -qq && apt-get install -y -qq samtools
-        (gzcat "${ref_fasta_gz}" > /input/ref.fasta && samtools faidx /input/ref.fasta)
+        gzcat "${ref_fasta_gz}" > ref.fasta && samtools faidx ref.fasta
 
         /opt/deepvariant/bin/run_deepvariant \
             --model_type=${model_type} \
-            --ref=/input/ref.fasta \
+            --ref=ref.fasta \
             --reads=${bam} \
             --output_vcf=/output/YOUR_OUTPUT_VCF \
             --output_gvcf=/output/YOUR_OUTPUT_GVCF \
