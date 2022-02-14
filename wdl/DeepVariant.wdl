@@ -30,8 +30,8 @@ workflow DeepVariant {
     File bam
     File? bai
 
-    # DeepVariant model files (with no folder component)
-    File model_tar
+    # DeepVariant model type
+    String model_type #WGS,WES,PACBIO,HYBRID_PACBIO_ILLUMINA
 
     # Advanced setting for DeepVariant make_examples
     Int? gvcf_gq_binsize
@@ -39,34 +39,36 @@ workflow DeepVariant {
     # DeepVariant docker image tag
     # c.f. https://github.com/google/deepvariant/blob/master/docs/deepvariant-docker.md
     String? deepvariant_docker
-    String deepvariant_docker_default = select_first([deepvariant_docker,"gcr.io/deepvariant-docker/deepvariant:0.7.0"])
+    String deepvariant_docker_default = select_first([deepvariant_docker,"gcr.io/deepvariant-docker/deepvariant:1.3.0"])
 
-    call make_examples { input:
-        ref_fasta_gz = ref_fasta_gz,
-        range = range,
-        ranges_bed = ranges_bed,
+    # call make_examples { input:
+    #     ref_fasta_gz = ref_fasta_gz,
+    #     range = range,
+    #     ranges_bed = ranges_bed,
+    #     bam = bam,
+    #     bai = bai,
+    #     gvcf_gq_binsize = gvcf_gq_binsize,
+    #     deepvariant_docker = deepvariant_docker_default
+    # }
+
+    call run_deepvariant { input:
         bam = bam,
         bai = bai,
-        gvcf_gq_binsize = gvcf_gq_binsize,
-        deepvariant_docker = deepvariant_docker_default
-    }
-
-    call call_variants { input:
-        model_tar = model_tar,
-        examples_tar = make_examples.examples_tar,
-        deepvariant_docker = deepvariant_docker_default
-    }
-
-    call postprocess_variants { input:
         ref_fasta_gz = ref_fasta_gz,
-        call_variants_output = call_variants.call_variants_output,
-        gvcf_tfrecords_tar = make_examples.gvcf_tfrecords_tar,
+        model_type = model_type,
         deepvariant_docker = deepvariant_docker_default
     }
+
+    # call postprocess_variants { input:
+    #     ref_fasta_gz = ref_fasta_gz,
+    #     call_variants_output = call_variants.call_variants_output,
+    #     gvcf_tfrecords_tar = make_examples.gvcf_tfrecords_tar,
+    #     deepvariant_docker = deepvariant_docker_default
+    # }
 
     output {
-        File vcf_gz = postprocess_variants.vcf_gz
-        File gvcf_gz = postprocess_variants.gvcf_gz
+        File vcf_gz = run_deepvariant.call_variants_output
+        #File gvcf_gz = postprocess_variants.gvcf_gz
     }
 }
 
@@ -144,29 +146,35 @@ task make_examples {
 }
 
 # DeepVariant call_variants (CPU)
-task call_variants {
+task run_deepvariant {
     # DeepVariant model files (with no folder component)
-    File model_tar
-    File examples_tar
+    File ref_fasta_gz
+    String model_type
+    File bam
+    File? bai
     String deepvariant_docker
 
     parameter_meta {
-        examples_tar: "stream"
-        model_tar: "stream"
+        ref_fasta_gz: "stream"
     }
 
     command <<<
         set -ex -o pipefail
 
-        tar xvf "${model_tar}" &
-        mkdir examples output
-        tar xvf "${examples_tar}" -C examples/
-        wait -n
+        apt-get update -qq && apt-get install -y -qq samtools
+        (zcat "${ref_fasta_gz}" > /input/ref.fasta && samtools faidx /input/ref.fasta)
 
-        n_examples=$(find examples/ -type f -name "*.gz" | wc -l)
-        output_name=$(basename "${examples_tar}" .examples.tar)
+        /opt/deepvariant/bin/run_deepvariant \
+            --model_type=${model_type} \ **Replace this string with exactly one of the following [WGS,WES,PACBIO,HYBRID_PACBIO_ILLUMINA]**
+            --ref=/input/ref.fasta \
+            --reads=${bam} \
+            --output_vcf=/output/YOUR_OUTPUT_VCF \
+            --output_gvcf=/output/YOUR_OUTPUT_GVCF \
+            --num_shards=$(nproc) \ **This will use all your cores to run make_examples. Feel free to change.**
+            --logging_dir=/output/logs \ **Optional. This saves the log output for each stage separately.
+            --dry_run=false **Default is false. If set to true, commands will be printed out but not executed.
 
-        NO_GCE_CHECK=True /opt/deepvariant/bin/call_variants \
+        NO_GCE_CHECK=True /opt/deepvariant/bin/run_deepvariant \
             --outfile "output/$output_name.call_variants.tfrecord.gz" \
             --examples "examples/$output_name.tfrecord@$n_examples.gz" \
             --checkpoint model.ckpt
