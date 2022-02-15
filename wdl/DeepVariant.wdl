@@ -67,7 +67,8 @@ workflow DeepVariant {
     # }
 
     output {
-        File vcf_gz = run_deepvariant.call_variants_output
+        File vcf = run_deepvariant.vcf
+        File gvcf = run_deepvariant.gvcf
         #File gvcf_gz = postprocess_variants.gvcf_gz
     }
 }
@@ -168,8 +169,8 @@ task run_deepvariant {
             --model_type=${model_type} \
             --ref=ref.fasta \
             --reads=${bam} \
-            --output_vcf=/output/YOUR_OUTPUT_VCF \
-            --output_gvcf=/output/YOUR_OUTPUT_GVCF \
+            --output_vcf=/output/output.vcf \
+            --output_gvcf=/output/output.gvcf \
             --num_shards=$(nproc) \
             --logging_dir=/output/logs \
             --dry_run=false
@@ -183,7 +184,8 @@ task run_deepvariant {
     }
 
     output {
-        File call_variants_output = glob("output/*.gz")[0]
+        File vcf = glob("output/*.vcf")[0]
+        File gvcf = glob("output/*.gvcf")[0]
     }
 }
 
