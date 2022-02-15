@@ -174,10 +174,7 @@ task run_deepvariant {
             --logging_dir=/output/logs \
             --dry_run=false
 
-        NO_GCE_CHECK=True /opt/deepvariant/bin/run_deepvariant \
-            --outfile "output/$output_name.call_variants.tfrecord.gz" \
-            --examples "examples/$output_name.tfrecord@$n_examples.gz" \
-            --checkpoint model.ckpt
+
     >>>
 
     runtime {
